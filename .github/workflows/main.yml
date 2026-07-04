@@ -10,11 +10,12 @@ jobs:
       - name: Zip Dosyasini Otomatik Ac
         run: |
           unzip -o "*.zip"
-          dir_name=$(find . -maxdepth 1 -type d ! -name "." ! -name ".github" | head -n 1)
-          if [ -n "$dir_name" ]; then
-            echo "Proje klasoru bulundu: $dir_name"
-            mv "$dir_name"/* . 2>/dev/null || true
-            mv "$dir_name"/.* . 2>/dev/null || true
+          # Ana projenin yerini build.gradle dosyasına bakarak bulalım
+          BG_DIR=$(find . -name "build.gradle" -exec dirname {} \; | head -n 1)
+          echo "Proje dizini bulundu: $BG_DIR"
+          if [ "$BG_DIR" != "." ] && [ -n "$BG_DIR" ]; then
+            mv "$BG_DIR"/* . 2>/dev/null || true
+            mv "$BG_DIR"/.* . 2>/dev/null || true
           fi
 
       - name: Java 17 Kurulumu
@@ -22,19 +23,20 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
-
-      - name: Derleme Iznini Ayarla
-        run: |
-          chmod +x gradlew 2>/dev/null || true
-          chmod +x app/gradlew 2>/dev/null || true
 
       - name: Android APK Derle
-        run: ./gradlew assembleDebug
+        run: |
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug
+          else
+            echo "gradlew bulunamadi, sistem gradle'i kullaniliyor..."
+            gradle assembleDebug
+          fi
 
       - name: APK Dosyasini Paketle
         uses: actions/upload-artifact@v4
         with:
           name: yagmurun-diyet-uygulamasi
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: "**/build/outputs/apk/debug/app-debug.apk"
           
